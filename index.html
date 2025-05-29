@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upwork Direct Contract Fee Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FAF8F5; /* Warm Neutral Background */
+            color: #4A4A4A; /* Dark Gray for text */
+        }
+        .calculator-card {
+            background-color: #FFFFFF;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .input-label {
+            color: #718096; /* Medium Gray */
+        }
+        .input-field {
+            border-color: #E2E8F0; /* Light Gray Border */
+            border-radius: 0.375rem;
+        }
+        .input-field:focus {
+            border-color: #A59A8E; /* Subtle Accent Border */
+            box-shadow: 0 0 0 3px rgba(165, 154, 142, 0.2); /* Subtle Accent Shadow */
+            outline: none;
+        }
+        .output-value {
+            color: #7A6C5D; /* Muted Brown/Accent */
+            font-weight: 600;
+        }
+        .total-value {
+            color: #5A4F44; /* Darker Brown/Accent */
+            font-weight: 700;
+            font-size: 1.125rem; /* lg */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px; /* Max width for readability */
+            margin-left: auto;
+            margin-right: auto;
+            height: 280px; /* Base height */
+            max-height: 320px; /* Max height */
+        }
+        @media (min-width: 768px) { /* md breakpoint */
+            .chart-container {
+                height: 300px;
+            }
+        }
+        .info-icon {
+            cursor: help;
+            color: #A0AEC0; /* Lighter gray for icon */
+        }
+        .tooltip {
+            visibility: hidden;
+            background-color: #2D3748; /* Dark gray tooltip */
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.875rem;
+            width: max-content;
+            max-width: 250px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .info-icon:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .currency-symbol {
+            color: #718096; /* Medium Gray */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6">
+
+    <div class="w-full max-w-4xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold" style="color: #5A4F44;">Upwork Direct Contract Fee Calculator</h1>
+            <p class="mt-2 text-md sm:text-lg text-gray-600">
+                Understand the costs involved in an Upwork Direct Contract. This tool helps both clients and freelancers see a detailed breakdown of fees based on the client's offer.
+            </p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <section class="lg:col-span-1 calculator-card p-6">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Enter Contract Details</h2>
+                <div class="space-y-6">
+                    <div>
+                        <label for="clientOffer" class="block text-sm font-medium input-label mb-1">Client Offer (Total they pay)</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
+                            <input type="number" id="clientOffer" name="clientOffer" value="200" min="0" step="0.01" class="w-full p-3 pl-7 input-field focus:ring-2 focus:ring-opacity-50" style="border-color: #A59A8E; focus-ring-color: #A59A8E;">
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">The total amount the client intends to send for the project.</p>
+                    </div>
+                    <div>
+                        <label for="freelancerPlus" class="block text-sm font-medium input-label mb-1">Are you a Freelancer Plus member?</label>
+                        <select id="freelancerPlus" name="freelancerPlus" class="w-full p-3 input-field focus:ring-2 focus:ring-opacity-50" style="border-color: #A59A8E; focus-ring-color: #A59A8E;">
+                            <option value="no">No</option>
+                            <option value="yes">Yes</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">Freelancer Plus members have different service fee structures.</p>
+                    </div>
+                </div>
+                 <div class="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                    <h3 class="font-semibold mb-1">💡 How Fees Work:</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Clients:</strong> Pay a 5% marketplace fee + a one-time $9.95 initiation fee (for the first payment of a contract).</li>
+                        <li><strong>Freelancers:</strong> Pay a 5% service fee, unless they are a Freelancer Plus member (0% fee).</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="lg:col-span-2 calculator-card p-6">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Fee Breakdown</h2>
+                <p class="mb-6 text-gray-600">
+                    Based on your inputs, here's how the fees are distributed. All amounts are in USD.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+                    <div class="space-y-3 border border-gray-200 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2" style="color: #7A6C5D;">Client's Perspective</h3>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Client Offer:</span>
+                            <span class="output-value" id="outClientOffer">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Upwork Client Marketplace Fee (5%):</span>
+                            <span class="output-value" id="outClientMarketplaceFee">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Contract Initiation Fee:
+                                <span class="info-icon relative">
+                                    ⓘ
+                                    <span class="tooltip">A one-time fee of up to $9.95 when making the first payment on a contract. Assumed for this calculation if offer > $0.</span>
+                                </span>
+                            </span>
+                            <span class="output-value" id="outClientInitiationFee">$0.00</span>
+                        </div>
+                        <hr class="my-2 border-gray-300">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-gray-700">Total Cost to Client:</span>
+                            <span class="total-value" id="outTotalCostClient">$0.00</span>
+                        </div>
+                        <div class="mt-4 chart-container">
+                            <canvas id="clientChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 border border-gray-200 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2" style="color: #7A6C5D;">Freelancer's Perspective</h3>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Freelancer Receives (Before Fees):</span>
+                            <span class="output-value" id="outFreelancerReceives">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Freelancer Service Fee:
+                                <span class="info-icon relative">
+                                    ⓘ
+                                    <span class="tooltip">Typically 5%. Waived (0%) if the freelancer is a Freelancer Plus member.</span>
+                                </span>
+                            </span>
+                            <span class="output-value" id="outFreelancerServiceFee">$0.00</span>
+                        </div>
+                        <hr class="my-2 border-gray-300">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-gray-700">Net Amount to Freelancer:</span>
+                            <span class="total-value" id="outNetFreelancer">$0.00</span>
+                        </div>
+                         <div class="mt-4 chart-container">
+                            <canvas id="freelancerChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center mt-12 py-6 border-t border-gray-200">
+            <p class="text-sm text-gray-500">This calculator provides an estimate based on Upwork's standard Direct Contract fees. Fees are subject to change by Upwork. Always verify current fee structures on the official Upwork platform.</p>
+        </footer>
+    </div>
+
+    <script>
+        const clientOfferInput = document.getElementById('clientOffer');
+        const freelancerPlusSelect = document.getElementById('freelancerPlus');
+
+        const outClientOffer = document.getElementById('outClientOffer');
+        const outClientMarketplaceFee = document.getElementById('outClientMarketplaceFee');
+        const outClientInitiationFee = document.getElementById('outClientInitiationFee');
+        const outTotalCostClient = document.getElementById('outTotalCostClient');
+
+        const outFreelancerReceives = document.getElementById('outFreelancerReceives');
+        const outFreelancerServiceFee = document.getElementById('outFreelancerServiceFee');
+        const outNetFreelancer = document.getElementById('outNetFreelancer');
+
+        let clientChartInstance = null;
+        let freelancerChartInstance = null;
+
+        const INITIATION_FEE_AMOUNT = 9.95;
+        const CLIENT_MARKETPLACE_FEE_RATE = 0.05;
+        const FREELANCER_SERVICE_FEE_RATE = 0.05;
+
+        function formatCurrency(amount) {
+            return `$${amount.toFixed(2)}`;
+        }
+
+        function wrapText(str, maxWidth) {
+            if (str.length <= maxWidth) return str;
+            const words = str.split(' ');
+            let lines = [];
+            let currentLine = words[0];
+            for (let i = 1; i < words.length; i++) {
+                if (currentLine.length + words[i].length + 1 <= maxWidth) {
+                    currentLine += ' ' + words[i];
+                } else {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        function createOrUpdateChart(chartInstance, canvasId, labels, data, backgroundColor, borderColor, chartLabel) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const wrappedLabels = labels.map(label => wrapText(label, 16));
+
+            if (chartInstance) {
+                chartInstance.data.labels = wrappedLabels;
+                chartInstance.data.datasets[0].data = data;
+                chartInstance.data.datasets[0].backgroundColor = backgroundColor;
+                chartInstance.data.datasets[0].borderColor = borderColor;
+                chartInstance.update();
+                return chartInstance;
+            } else {
+                return new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: wrappedLabels,
+                        datasets: [{
+                            label: chartLabel,
+                            data: data,
+                            backgroundColor: backgroundColor,
+                            borderColor: borderColor,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y', // Horizontal bar chart for better label readability
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Amount (USD)'
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value;
+                                    }
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                     font: {
+                                        size: 10 // Adjust font size if labels are still too long
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false // Hiding legend as chart is simple
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.x !== null) {
+                                            label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.x);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function calculateFees() {
+            const offer = parseFloat(clientOfferInput.value) || 0;
+            const isPlusMember = freelancerPlusSelect.value === 'yes';
+
+            // Client Calculations
+            const clientMarketplaceFee = offer * CLIENT_MARKETPLACE_FEE_RATE;
+            const clientInitiationFee = offer > 0 ? INITIATION_FEE_AMOUNT : 0;
+            const totalCostClient = offer + clientMarketplaceFee + clientInitiationFee;
+
+            outClientOffer.textContent = formatCurrency(offer);
+            outClientMarketplaceFee.textContent = formatCurrency(clientMarketplaceFee);
+            outClientInitiationFee.textContent = formatCurrency(clientInitiationFee);
+            outTotalCostClient.textContent = formatCurrency(totalCostClient);
+
+            clientChartInstance = createOrUpdateChart(
+                clientChartInstance,
+                'clientChart',
+                ['Client Offer', 'Marketplace Fee', 'Initiation Fee'],
+                [offer, clientMarketplaceFee, clientInitiationFee],
+                ['rgba(165, 154, 142, 0.6)', 'rgba(196, 186, 176, 0.6)', 'rgba(221, 214, 205, 0.6)'], // Shades of Warm Neutrals
+                ['rgba(165, 154, 142, 1)', 'rgba(196, 186, 176, 1)', 'rgba(221, 214, 205, 1)'],
+                'Client Costs'
+            );
+
+            // Freelancer Calculations
+            const freelancerReceivesBeforeFees = offer;
+            const freelancerServiceFee = isPlusMember ? 0 : freelancerReceivesBeforeFees * FREELANCER_SERVICE_FEE_RATE;
+            const netFreelancer = freelancerReceivesBeforeFees - freelancerServiceFee;
+
+            outFreelancerReceives.textContent = formatCurrency(freelancerReceivesBeforeFees);
+            outFreelancerServiceFee.textContent = formatCurrency(freelancerServiceFee);
+            outNetFreelancer.textContent = formatCurrency(netFreelancer);
+
+            freelancerChartInstance = createOrUpdateChart(
+                freelancerChartInstance,
+                'freelancerChart',
+                ['Gross Received', 'Service Fee'],
+                [freelancerReceivesBeforeFees, freelancerServiceFee > 0 ? freelancerServiceFee : 0.001], // Chart.js has issues with all zero data
+                ['rgba(122, 108, 93, 0.6)', 'rgba(217, 160, 101, 0.6)'], // Muted Brown & Subtle Accent
+                ['rgba(122, 108, 93, 1)', 'rgba(217, 160, 101, 1)'],
+                'Freelancer Earnings'
+            );
+             if (freelancerServiceFee === 0) { // specific handling for 0 fee
+                freelancerChartInstance.data.datasets[0].data = [freelancerReceivesBeforeFees, 0];
+                freelancerChartInstance.data.labels = wrapText('Gross Received (All Yours!)', 16); // Single label if no fee
+                freelancerChartInstance.update();
+            }
+        }
+
+        clientOfferInput.addEventListener('input', calculateFees);
+        freelancerPlusSelect.addEventListener('change', calculateFees);
+
+        // Initial calculation on page load
+        calculateFees();
+    </script>
+</body>
+</html>
